@@ -1,0 +1,19 @@
+openapi: 3.0.3
+info:
+  title: 範例 API
+  version: "1.0.0"
+paths:
+  /orders:
+    post:
+      operationId: createOrder
+      summary: 建立訂單
+      responses:
+        "201":
+          description: created
+  /orders/{id}:
+    get:
+      operationId: getOrder
+      summary: 查訂單
+      responses:
+        "200":
+          description: ok

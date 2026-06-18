@@ -252,6 +252,12 @@ TODO: 哪些模組受影響?有何取捨?
 """
 
 
+def cmd_contract(args) -> int:
+    """OpenAPI contract gate — deterministic, can BLOCK."""
+    from .openapi_gate import contract_gate
+    return _emit(contract_gate(args.spec, args.tests))
+
+
 def cmd_new(args) -> int:
     """Scaffold a new work item: spec stub + ADR stub + tasks.yaml entry.
     Enforces 'declare spec+design BEFORE you code' as a single command."""
@@ -342,6 +348,11 @@ def build_parser() -> argparse.ArgumentParser:
     rv.add_argument("--backend", default="anthropic", choices=["anthropic", "codex"],
                     help="顧問驗證者腦:anthropic API(付費)或 codex(訂閱)")
     rv.set_defaults(func=cmd_review)
+
+    ct = sub.add_parser("contract")
+    ct.add_argument("--spec", default="contracts/openapi.yaml")
+    ct.add_argument("--tests", default="tests/contract")
+    ct.set_defaults(func=cmd_contract)
 
     nw = sub.add_parser("new")
     nw.add_argument("id", help="SPEC-NNN,例如 SPEC-006")

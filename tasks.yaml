@@ -1,3 +1,5 @@
+# 工程進度。每項綁一個驗證方式,supervisor status 會實跑、自動打勾。
+# 勾不是手寫的宣稱,是機器當場驗證的結果。
 items:
 - id: P1
   title: 事件閘門(命令/路徑/spec追溯)
@@ -17,9 +19,10 @@ items:
     - scripts/claude_hook_validate.py
     - .codex/config.toml.example
 - id: P4
-  title: OpenAPI contract gate
+  title: OpenAPI 契約閘門
+  spec: SPEC-008
   verify:
-    file: contracts/openapi.yaml
+    test: .venv/bin/pytest tests/unit/test_openapi.py -q
 - id: P5
   title: MCP server
   verify:
