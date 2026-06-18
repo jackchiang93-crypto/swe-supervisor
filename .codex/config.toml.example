@@ -1,0 +1,8 @@
+# 複製成 .codex/config.toml 啟用。
+# hooks 攔截事件;exit 2 = 擋下並把理由回給 Codex agent。
+
+[[hooks.PreToolUse]]
+matcher = "Bash|Edit|Write"
+
+[[hooks.PreToolUse.hooks]]
+command = "supervisor codex-hook"

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 scripts/claude_hook_validate.py"
+            "command": "supervisor claude-hook"
           }
         ]
       }

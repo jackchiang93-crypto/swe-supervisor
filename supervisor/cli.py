@@ -95,6 +95,93 @@ def cmd_pre_deploy(args) -> int:
     ))
 
 
+def _hook_event_from_stdin() -> tuple[ToolEvent, Path, Policy]:
+    payload = json.loads(sys.stdin.read() or "{}")
+    ti = payload.get("tool_input", {})
+    files = [f for f in (ti.get("file_path"), ti.get("path")) if f]
+    import re as _re
+    refs: list[str] = []
+    try:
+        b = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                           capture_output=True, text=True, timeout=3).stdout
+        refs = _re.findall(r"SPEC-\d+", b)
+    except Exception:
+        pass
+    evt = ToolEvent(
+        event=payload.get("hook_event_name", "PreToolUse"),
+        tool_name=payload.get("tool_name", "unknown"),
+        command=ti.get("command"),
+        changed_files=files,
+        spec_refs=refs,
+    )
+    cwd = Path(payload.get("cwd", "."))
+    pp = cwd / "policies" / "default.yaml"
+    return evt, cwd, (Policy.load(pp) if pp.exists() else Policy())
+
+
+def cmd_claude_hook(args) -> int:
+    """PreToolUse hook. ALLOW=silent, REVIEW=ask, BLOCK=deny (Claude JSON)."""
+    evt, cwd, policy = _hook_event_from_stdin()
+    d = validate_event(evt, policy, cwd / "specs")
+    if d.status == GateStatus.ALLOW:
+        return 0
+    reason = "; ".join(d.reasons)
+    if d.required_actions:
+        reason += " | 修正: " + "; ".join(d.required_actions)
+    if d.codes:
+        reason += " | codes: " + ",".join(c.value for c in d.codes)
+    print(json.dumps({"hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny" if d.status == GateStatus.BLOCK else "ask",
+        "permissionDecisionReason": reason,
+    }}))
+    return 0
+
+
+def cmd_codex_hook(args) -> int:
+    """Codex hook. exit 0=allow, exit 2=block/review (reason to stderr)."""
+    evt, cwd, policy = _hook_event_from_stdin()
+    d = validate_event(evt, policy, cwd / "specs")
+    if d.status == GateStatus.ALLOW:
+        return 0
+    msg = f"[{d.status.value.upper()}] " + "; ".join(d.reasons)
+    if d.required_actions:
+        msg += " | 修正: " + "; ".join(d.required_actions)
+    print(msg, file=sys.stderr)
+    return 2
+
+
+def cmd_install(args) -> int:
+    """Drop governance config into a target repo. Cross-project core feature."""
+    target = Path(args.path).resolve()
+    if not target.is_dir():
+        print(f"目標不存在: {target}", file=sys.stderr)
+        return 1
+    # .claude/settings.json
+    cdir = target / ".claude"
+    cdir.mkdir(exist_ok=True)
+    settings = cdir / "settings.json"
+    existing = json.loads(settings.read_text()) if settings.exists() else {}
+    existing.setdefault("hooks", {})["PreToolUse"] = [{
+        "matcher": "Bash|Edit|Write",
+        "hooks": [{"type": "command", "command": "supervisor claude-hook"}],
+    }]
+    settings.write_text(json.dumps(existing, indent=2, ensure_ascii=False) + "\n")
+    # policies + specs scaffolding
+    pol = target / "policies"
+    pol.mkdir(exist_ok=True)
+    pf = pol / "default.yaml"
+    if not pf.exists():
+        src = Path(__file__).resolve().parent.parent / "policies" / "default.yaml"
+        pf.write_text(src.read_text() if src.exists() else "default_mode: review\nallowed_paths: [\"src/**\", \"tests/**\"]\n")
+    (target / "specs").mkdir(exist_ok=True)
+    print(f"已安裝治理層到 {target}")
+    print(f"  - {settings.relative_to(target)} (PreToolUse → supervisor claude-hook)")
+    print(f"  - {pf.relative_to(target)}")
+    print("調整 policies/default.yaml 的 allowed_paths 後即可用。")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="supervisor")
     p.add_argument("--policy", default="policies/default.yaml")
@@ -124,6 +211,13 @@ def build_parser() -> argparse.ArgumentParser:
     pd.add_argument("--rollback", action="store_true")
     pd.add_argument("--tests-passed", action="store_true")
     pd.set_defaults(func=cmd_pre_deploy)
+
+    sub.add_parser("claude-hook").set_defaults(func=cmd_claude_hook)
+    sub.add_parser("codex-hook").set_defaults(func=cmd_codex_hook)
+
+    ins = sub.add_parser("install")
+    ins.add_argument("path", help="目標 repo 路徑")
+    ins.set_defaults(func=cmd_install)
     return p
 
 
