@@ -36,3 +36,18 @@ items:
   spec: SPEC-010
   verify:
     test: .venv/bin/pytest tests/unit/test_dossier.py -q
+- id: P11
+  title: Provenance 產物來源證明
+  spec: SPEC-011
+  verify:
+    test: .venv/bin/pytest tests/unit/test_optional.py -q -k attestation
+- id: P12
+  title: Formal 形式驗證閘門(TLA+/Alloy)
+  spec: SPEC-012
+  verify:
+    test: .venv/bin/pytest tests/unit/test_optional.py -q -k formal
+- id: P13
+  title: Dashboard 靜態儀表板
+  spec: SPEC-013
+  verify:
+    test: .venv/bin/pytest tests/unit/test_optional.py -q -k dashboard

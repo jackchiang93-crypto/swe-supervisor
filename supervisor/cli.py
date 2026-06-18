@@ -252,6 +252,28 @@ TODO: 哪些模組受影響?有何取捨?
 """
 
 
+def cmd_attest(args) -> int:
+    from .provenance import build_attestation
+    att = build_attestation(args.base)
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(att, ensure_ascii=False, indent=2))
+    print(f"已寫出 provenance: {out}")
+    return 0
+
+
+def cmd_formal(args) -> int:
+    from .formal_gate import formal_gate
+    return _emit(formal_gate(args.dir))
+
+
+def cmd_dashboard(args) -> int:
+    from .dashboard import render_dashboard
+    Path(args.out).write_text(render_dashboard())
+    print(f"已產生儀表板: {args.out}(瀏覽器開啟)")
+    return 0
+
+
 def cmd_spec(args) -> int:
     from .dossier import spec_list, spec_show
     if args.spec_cmd == "show":
@@ -363,6 +385,19 @@ def build_parser() -> argparse.ArgumentParser:
     rv.add_argument("--backend", default="anthropic", choices=["anthropic", "codex"],
                     help="顧問驗證者腦:anthropic API(付費)或 codex(訂閱)")
     rv.set_defaults(func=cmd_review)
+
+    at = sub.add_parser("attest")
+    at.add_argument("--base", default="origin/main")
+    at.add_argument("--out", default="dist/attestation.json")
+    at.set_defaults(func=cmd_attest)
+
+    fm = sub.add_parser("formal")
+    fm.add_argument("--dir", default="formal")
+    fm.set_defaults(func=cmd_formal)
+
+    db = sub.add_parser("dashboard")
+    db.add_argument("--out", default="dashboard.html")
+    db.set_defaults(func=cmd_dashboard)
 
     sp = sub.add_parser("spec")
     sp_sub = sp.add_subparsers(dest="spec_cmd")

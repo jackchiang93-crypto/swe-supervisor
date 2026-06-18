@@ -75,6 +75,9 @@ coding AI(Claude Code/Codex)本身就是 LLM;supervisor 只當「給它判決的
 | `spec list` | 任何時候 | 列出所有 SPEC(含埋在 current.md 的),含 ADR+進度 |
 | `spec show SPEC-NNN` | 改功能前 | 拉出單一 SPEC 全文 + 連動 ADR |
 | `overview [--full]` | 任何時候 | 專案軟工總覽:做到哪、剩多少,--full 附全文 |
+| `attest` | 變更後 | 產生 provenance JSON(commit↔spec↔diff↔進度) |
+| `formal` | 高風險模組 | TLA+/Alloy 閘門(有工具鏈則跑 TLC,無則誠實降級) |
+| `dashboard` | 任何時候 | 產生自包含 HTML 視覺儀表板 |
 
 ## 整合
 
