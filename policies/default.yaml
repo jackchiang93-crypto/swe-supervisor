@@ -1,0 +1,34 @@
+version: 1
+# default posture when a path/command isn't explicitly classified: ask, don't allow
+default_mode: review
+
+# Only these may be auto-written by an agent. Everything else => review.
+allowed_paths:
+  - "src/**"
+  - "supervisor/**"
+  - "tests/**"
+  - "contracts/**"
+  - "specs/**"
+  - "design/**"
+
+# Extra blocks ON TOP of HARD_PROTECTED (.claude, .codex, policies, .github
+# workflows, secrets, .env, infra/prod — those are hardcoded and cannot be
+# un-protected by editing this file).
+blocked_paths:
+  - "pyproject.toml"
+
+tool_policy:
+  Write:
+    require_spec_ref: true
+    require_design_ref: false
+
+risk_policy:
+  production_deploy: manual_approval
+  permission_change: manual_approval
+  data_deletion: manual_approval
+  external_posting: manual_approval
+
+evidence_policy:
+  require_tests: true
+  require_traceability: true
+  require_structured_output: true
