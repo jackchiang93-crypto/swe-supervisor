@@ -43,7 +43,12 @@ coding AI(Claude Code/Codex)本身就是 LLM;supervisor 只當「給它判決的
 | 危險命令/動禁區 | tokenize + allowlist | ❌ |
 | 散文 spec 的語意漂移 | LLM 顧問(REVIEW-only) | ✅ 選配 |
 
-只有最後一項要 `anthropic`(選用 `[llm]` 依賴)。沒裝,核心照常運作。
+最後一項的「顧問腦」可三選一:
+- `supervisor review --backend codex` — 用本機 Codex 訂閱,**不付 API 錢**
+- `supervisor review --backend anthropic` — 付費 API(`[llm]` 選用依賴)
+- 都不裝 → 顧問跳過,確定性閘門照常硬擋
+
+核心督促(spec追溯/design強制/QA/命令/路徑)零 API。
 
 ## 工作流程(治理閉環)
 

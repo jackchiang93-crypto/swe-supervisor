@@ -1,32 +1,31 @@
-# 工程進度。每項綁一個驗證方式,supervisor status 會實跑、自動打勾。
-# 勾不是手寫的宣稱,是機器當場驗證的結果。
 items:
-  - id: P1
-    title: 事件閘門(命令/路徑/spec追溯)
-    spec: SPEC-001
-    verify:
-      test: ".venv/bin/pytest tests/unit/test_gate.py -q"
-
-  - id: P2
-    title: 設計漂移檢查(AST import 規則)
-    spec: SPEC-003
-    verify:
-      test: ".venv/bin/pytest tests/unit/test_design.py -q"
-
-  - id: P3
-    title: Claude/Codex hook + 跨專案 install
-    spec: SPEC-002
-    verify:
-      files:
-        - "scripts/claude_hook_validate.py"
-        - ".codex/config.toml.example"
-
-  - id: P4
-    title: OpenAPI contract gate
-    verify:
-      file: "contracts/openapi.yaml"
-
-  - id: P5
-    title: MCP server
-    verify:
-      file: "supervisor/mcp_server.py"
+- id: P1
+  title: 事件閘門(命令/路徑/spec追溯)
+  spec: SPEC-001
+  verify:
+    test: .venv/bin/pytest tests/unit/test_gate.py -q
+- id: P2
+  title: 設計漂移檢查(AST import 規則)
+  spec: SPEC-003
+  verify:
+    test: .venv/bin/pytest tests/unit/test_design.py -q
+- id: P3
+  title: Claude/Codex hook + 跨專案 install
+  spec: SPEC-002
+  verify:
+    files:
+    - scripts/claude_hook_validate.py
+    - .codex/config.toml.example
+- id: P4
+  title: OpenAPI contract gate
+  verify:
+    file: contracts/openapi.yaml
+- id: P5
+  title: MCP server
+  verify:
+    file: supervisor/mcp_server.py
+- id: P7
+  title: Codex 訂閱驗證後端
+  spec: SPEC-007
+  verify:
+    test: .venv/bin/pytest tests/unit/test_review_backends.py -q

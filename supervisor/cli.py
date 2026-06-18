@@ -192,7 +192,7 @@ def cmd_review(args) -> int:
     checks (own BLOCK) with the LLM advisor (REVIEW at most). Deterministic
     verdict wins on severity."""
     from .design_rules import DesignRules, check_design
-    from .review import llm_review
+    from .review import advisory_review
 
     diff = subprocess.run(
         ["git", "diff", "--name-only", args.base + "...HEAD"],
@@ -216,7 +216,7 @@ def cmd_review(args) -> int:
         full_diff = subprocess.run(
             ["git", "diff", args.base + "...HEAD"], capture_output=True, text=True
         ).stdout
-        decision = decision.merge(llm_review(spec, design, full_diff))
+        decision = decision.merge(advisory_review(spec, design, full_diff, args.backend))
 
     return _emit(decision)
 
@@ -339,6 +339,8 @@ def build_parser() -> argparse.ArgumentParser:
     rv.add_argument("--design")
     rv.add_argument("--rules", default="design/rules.yaml")
     rv.add_argument("--no-llm", action="store_true", help="只跑確定性設計檢查")
+    rv.add_argument("--backend", default="anthropic", choices=["anthropic", "codex"],
+                    help="顧問驗證者腦:anthropic API(付費)或 codex(訂閱)")
     rv.set_defaults(func=cmd_review)
 
     nw = sub.add_parser("new")
