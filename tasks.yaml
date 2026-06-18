@@ -23,12 +23,13 @@ items:
   spec: SPEC-008
   verify:
     test: .venv/bin/pytest tests/unit/test_openapi.py -q
-- id: P5
-  title: MCP server
-  verify:
-    file: supervisor/mcp_server.py
 - id: P7
   title: Codex 訂閱驗證後端
   spec: SPEC-007
   verify:
     test: .venv/bin/pytest tests/unit/test_review_backends.py -q
+- id: P9
+  title: MCP server(沉澱可呼叫工具)
+  spec: SPEC-009
+  verify:
+    test: .venv/bin/pytest tests/unit/test_mcp.py -q
