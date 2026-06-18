@@ -1,0 +1,20 @@
+# 架構分層規則(對應 ADR)。supervisor 用 AST 靜態檢查,違反=硬擋。
+layers:
+  - name: domain
+    paths: ["**/domain/**"]
+    module: "myapp.domain"
+  - name: infra
+    paths: ["**/infra/**"]
+    module: "myapp.infra"
+  - name: api
+    paths: ["**/api/**"]
+    module: "myapp.api"
+
+# domain 不可依賴 infra/api(依賴反轉);api 不可直接碰 infra
+forbidden:
+  - from: domain
+    to: infra
+  - from: domain
+    to: api
+  - from: api
+    to: infra

@@ -25,11 +25,24 @@
 - [x] hook 友善輸出:擋下時帶 codes + 修正建議,讓 agent 自救
 - [x] hook 邏輯收進 CLI(`supervisor claude-hook`),跨專案不必複製腳本
 
+## ✅ 「code 有沒有照 spec/design」— 已實作(分兩層)
+
+核心認知:**確定性檢查可信→硬擋;LLM 不可信→最多 REVIEW。**
+
+| 層 | 檔案 | 性質 | 可否硬擋 |
+|---|---|---|---|
+| 設計漂移(架構 import 規則) | `design_rules.py` | AST 靜態檢查,ground truth | ✅ BLOCK |
+| LLM 顧問審查 | `review.py` | 機率性,opus-4-8 structured output | ❌ 最多 REVIEW |
+| CLI `review` | 合併兩層,確定性優先 | — | — |
+
+- LLM 輸入(spec/design/diff)先過 `screen_injection`,疑似注入→不餵模型,改 REVIEW
+- LLM 判決永不單獨 ALLOW/BLOCK;confidence 設 0(不當訊號)
+- 無 API 金鑰/未裝 anthropic → 跳過 LLM,確定性閘門照跑
+
 ## ❌ 還沒做(藍圖第二階段,自用優先級低)
 
 | 項目 | 為何延後 |
 |---|---|
-| LLM 審查層(validate-diff 真跑 code review/design drift) | 需接模型 API + 注入防護,規則層先穩 |
 | MCP server | hook 先夠用,穩了再沉澱成 MCP 工具 |
 | GitHub Actions workflow yaml | 自用本機優先,有 CI 再加 |
 | provenance / SLSA / in-toto | 合規導向,單人用不到 |

@@ -182,6 +182,40 @@ def cmd_install(args) -> int:
     return 0
 
 
+def cmd_review(args) -> int:
+    """Does the code follow spec/design? Combines deterministic design-rule
+    checks (own BLOCK) with the LLM advisor (REVIEW at most). Deterministic
+    verdict wins on severity."""
+    from .design_rules import DesignRules, check_design
+    from .review import llm_review
+
+    diff = subprocess.run(
+        ["git", "diff", "--name-only", args.base + "...HEAD"],
+        capture_output=True, text=True,
+    )
+    files = [f for f in diff.stdout.splitlines() if f.strip()]
+
+    from .models import allow as _allow
+    decision = _allow("通過審查")
+
+    # 1. deterministic design conformance (trustworthy → can BLOCK)
+    rules_path = Path(args.rules)
+    if rules_path.exists():
+        rules = DesignRules.load(rules_path)
+        decision = decision.merge(check_design(files, rules))
+
+    # 2. LLM advisor (fuzzy → REVIEW at most), only if not already blocked
+    if decision.status != GateStatus.BLOCK and not args.no_llm:
+        spec = Path(args.spec).read_text() if args.spec and Path(args.spec).exists() else ""
+        design = Path(args.design).read_text() if args.design and Path(args.design).exists() else ""
+        full_diff = subprocess.run(
+            ["git", "diff", args.base + "...HEAD"], capture_output=True, text=True
+        ).stdout
+        decision = decision.merge(llm_review(spec, design, full_diff))
+
+    return _emit(decision)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="supervisor")
     p.add_argument("--policy", default="policies/default.yaml")
@@ -211,6 +245,14 @@ def build_parser() -> argparse.ArgumentParser:
     pd.add_argument("--rollback", action="store_true")
     pd.add_argument("--tests-passed", action="store_true")
     pd.set_defaults(func=cmd_pre_deploy)
+
+    rv = sub.add_parser("review")
+    rv.add_argument("--base", default="origin/main")
+    rv.add_argument("--spec")
+    rv.add_argument("--design")
+    rv.add_argument("--rules", default="design/rules.yaml")
+    rv.add_argument("--no-llm", action="store_true", help="只跑確定性設計檢查")
+    rv.set_defaults(func=cmd_review)
 
     sub.add_parser("claude-hook").set_defaults(func=cmd_claude_hook)
     sub.add_parser("codex-hook").set_defaults(func=cmd_codex_hook)
