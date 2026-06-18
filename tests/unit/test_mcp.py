@@ -44,6 +44,9 @@ def test_status_tool(tmp_path):
 
 
 def test_build_server_registers_tools():
-    # binding layer works when mcp is installed
+    # binding layer needs mcp (optional dep). Skip cleanly when absent — proves
+    # the "mcp is optional" design: core tools tested above without it.
+    import pytest
+    pytest.importorskip("mcp")
     srv = M.build_server()
     assert srv is not None
