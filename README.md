@@ -72,6 +72,9 @@ coding AI(Claude Code/Codex)本身就是 LLM;supervisor 只當「給它判決的
 | `review` | code review | 設計漂移硬擋 + LLM 顧問(REVIEW-only) |
 | `new` | 開工前 | 生 spec+ADR stub + 進度項(spec-first 一鍵) |
 | `status` | 任何時候 | 證據推導的打勾進度板 |
+| `spec list` | 任何時候 | 列出所有 SPEC(含埋在 current.md 的),含 ADR+進度 |
+| `spec show SPEC-NNN` | 改功能前 | 拉出單一 SPEC 全文 + 連動 ADR |
+| `overview [--full]` | 任何時候 | 專案軟工總覽:做到哪、剩多少,--full 附全文 |
 
 ## 整合
 

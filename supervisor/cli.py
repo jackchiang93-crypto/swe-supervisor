@@ -252,6 +252,21 @@ TODO: 哪些模組受影響?有何取捨?
 """
 
 
+def cmd_spec(args) -> int:
+    from .dossier import spec_list, spec_show
+    if args.spec_cmd == "show":
+        print(spec_show(args.id))
+    else:
+        print(spec_list())
+    return 0
+
+
+def cmd_overview(args) -> int:
+    from .dossier import overview
+    print(overview(full=args.full))
+    return 0
+
+
 def cmd_contract(args) -> int:
     """OpenAPI contract gate — deterministic, can BLOCK."""
     from .openapi_gate import contract_gate
@@ -348,6 +363,18 @@ def build_parser() -> argparse.ArgumentParser:
     rv.add_argument("--backend", default="anthropic", choices=["anthropic", "codex"],
                     help="顧問驗證者腦:anthropic API(付費)或 codex(訂閱)")
     rv.set_defaults(func=cmd_review)
+
+    sp = sub.add_parser("spec")
+    sp_sub = sp.add_subparsers(dest="spec_cmd")
+    sp_sub.add_parser("list").set_defaults(func=cmd_spec)
+    sp_show = sp_sub.add_parser("show")
+    sp_show.add_argument("id", help="SPEC-NNN")
+    sp_show.set_defaults(func=cmd_spec)
+    sp.set_defaults(func=cmd_spec, spec_cmd="list")  # `spec` 預設 list
+
+    ov = sub.add_parser("overview")
+    ov.add_argument("--full", action="store_true", help="附上每個 spec+ADR 全文")
+    ov.set_defaults(func=cmd_overview)
 
     ct = sub.add_parser("contract")
     ct.add_argument("--spec", default="contracts/openapi.yaml")
