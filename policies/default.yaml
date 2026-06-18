@@ -20,7 +20,13 @@ blocked_paths:
 tool_policy:
   Write:
     require_spec_ref: true
-    require_design_ref: false
+    # 碰架構面路徑時,必須帶可解析的 ADR 參照(逼「改架構先更新 design」)
+    require_design_ref: true
+    design_ref_paths:
+      - "src/**/domain/**"
+      - "src/**/infra/**"
+      - "src/**/api/**"
+      - "contracts/**"
 
 risk_policy:
   production_deploy: manual_approval

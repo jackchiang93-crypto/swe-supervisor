@@ -51,16 +51,30 @@ class Policy:
     allowed_paths: List[str] = field(default_factory=lambda: ["src/**", "tests/**"])
     blocked_paths: List[str] = field(default_factory=list)
     require_spec_ref: bool = True
+    require_design_ref: bool = False
+    # changes touching these globs must carry an ADR ref (architecture surface)
+    design_ref_paths: List[str] = field(default_factory=list)
 
     @classmethod
     def load(cls, path: str | Path) -> "Policy":
         data = yaml.safe_load(Path(path).read_text()) or {}
         tp = data.get("tool_policy", {})
+        w = tp.get("Write", {})
         return cls(
             default_mode=GateStatus(data.get("default_mode", "review")),
             allowed_paths=data.get("allowed_paths", ["src/**", "tests/**"]),
             blocked_paths=data.get("blocked_paths", []),
-            require_spec_ref=tp.get("Write", {}).get("require_spec_ref", True),
+            require_spec_ref=w.get("require_spec_ref", True),
+            require_design_ref=w.get("require_design_ref", False),
+            design_ref_paths=w.get("design_ref_paths", []),
+        )
+
+    def needs_design_ref(self, files: List[str]) -> bool:
+        if not self.require_design_ref:
+            return False
+        return any(
+            fnmatch.fnmatch(f.removeprefix("./"), pat)
+            for f in files for pat in self.design_ref_paths
         )
 
     def _protected(self) -> List[str]:

@@ -12,6 +12,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import yaml
+
 from .core import validate_event, verify_spec_refs
 from .models import ErrorCode, GateDecision, GateStatus, RiskLevel, ToolEvent
 from .policy import Policy, screen_injection
@@ -101,10 +103,12 @@ def _hook_event_from_stdin() -> tuple[ToolEvent, Path, Policy]:
     files = [f for f in (ti.get("file_path"), ti.get("path")) if f]
     import re as _re
     refs: list[str] = []
+    adr_refs: list[str] = []
     try:
         b = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
                            capture_output=True, text=True, timeout=3).stdout
         refs = _re.findall(r"SPEC-\d+", b)
+        adr_refs = _re.findall(r"ADR-\d+", b)
     except Exception:
         pass
     evt = ToolEvent(
@@ -113,6 +117,7 @@ def _hook_event_from_stdin() -> tuple[ToolEvent, Path, Policy]:
         command=ti.get("command"),
         changed_files=files,
         spec_refs=refs,
+        design_refs=adr_refs,
     )
     cwd = Path(payload.get("cwd", "."))
     pp = cwd / "policies" / "default.yaml"
@@ -216,6 +221,88 @@ def cmd_review(args) -> int:
     return _emit(decision)
 
 
+SPEC_STUB = """# {id} {title}
+
+## 需求
+TODO: 這個功能要做什麼?完成定義是什麼?
+
+## 完成定義(可驗證)
+- [ ] TODO
+
+## 對應 ADR
+{adr}
+"""
+
+ADR_STUB = """# {adr}: {title}
+
+狀態: proposed
+日期: TODO
+
+## 背景
+TODO: 為何需要這個決策?
+
+## 決策
+TODO: 採用什麼架構/契約/邊界?
+
+## 影響
+TODO: 哪些模組受影響?有何取捨?
+
+## 對應 spec
+{id}
+"""
+
+
+def cmd_new(args) -> int:
+    """Scaffold a new work item: spec stub + ADR stub + tasks.yaml entry.
+    Enforces 'declare spec+design BEFORE you code' as a single command."""
+    spec_id = args.id.upper()
+    if not spec_id.startswith("SPEC-"):
+        print("id 須為 SPEC-NNN 格式,例如 SPEC-006", file=sys.stderr)
+        return 1
+    num = spec_id.split("-")[1]
+    adr_id = f"ADR-{num}"
+    title = args.title or "TODO"
+
+    spec_file = Path("specs") / f"{spec_id}.md"
+    adr_file = Path("design/adr") / f"{adr_id}.md"
+    for f in (spec_file, adr_file):
+        f.parent.mkdir(parents=True, exist_ok=True)
+    if spec_file.exists() or adr_file.exists():
+        print(f"已存在,不覆寫: {spec_file} / {adr_file}", file=sys.stderr)
+        return 1
+    spec_file.write_text(SPEC_STUB.format(id=spec_id, title=title, adr=adr_id))
+    adr_file.write_text(ADR_STUB.format(adr=adr_id, title=title, id=spec_id))
+
+    # append a tasks.yaml entry (unverified until you add a verify)
+    tasks = Path(args.tasks)
+    data = yaml.safe_load(tasks.read_text()) if tasks.exists() else {"items": []}
+    data.setdefault("items", []).append({
+        "id": args.task_id or spec_id,
+        "title": title,
+        "spec": spec_id,
+        # no verify yet → shows as [?] until you wire a test/file
+    })
+    tasks.write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False))
+
+    print(f"已建立:\n  {spec_file}\n  {adr_file}\n  tasks.yaml += {args.task_id or spec_id}")
+    print("先填 spec/ADR,再開始 code。gate 會擋沒對到 spec 的變更。")
+    return 0
+
+
+def cmd_status(args) -> int:
+    """Evidence-derived progress board. Re-verifies every item each run, so the
+    checkboxes can't lie. Saves re-reading the whole conversation to ask
+    'what's done?'."""
+    from .progress import load_status, render_board
+    rows = load_status(args.tasks, ".")
+    if args.json:
+        import json as _json
+        print(_json.dumps([r.__dict__ for r in rows], ensure_ascii=False, indent=2))
+    else:
+        print(render_board(rows))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="supervisor")
     p.add_argument("--policy", default="policies/default.yaml")
@@ -253,6 +340,18 @@ def build_parser() -> argparse.ArgumentParser:
     rv.add_argument("--rules", default="design/rules.yaml")
     rv.add_argument("--no-llm", action="store_true", help="只跑確定性設計檢查")
     rv.set_defaults(func=cmd_review)
+
+    nw = sub.add_parser("new")
+    nw.add_argument("id", help="SPEC-NNN,例如 SPEC-006")
+    nw.add_argument("--title")
+    nw.add_argument("--task-id", help="進度板代號,如 P6(預設用 spec id)")
+    nw.add_argument("--tasks", default="tasks.yaml")
+    nw.set_defaults(func=cmd_new)
+
+    st = sub.add_parser("status")
+    st.add_argument("--tasks", default="tasks.yaml")
+    st.add_argument("--json", action="store_true")
+    st.set_defaults(func=cmd_status)
 
     sub.add_parser("claude-hook").set_defaults(func=cmd_claude_hook)
     sub.add_parser("codex-hook").set_defaults(func=cmd_codex_hook)

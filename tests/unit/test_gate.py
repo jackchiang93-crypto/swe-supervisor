@@ -72,3 +72,44 @@ def test_write_to_allowed_path_with_spec(tmp_path):
     evt = ToolEvent(event="PreToolUse", tool_name="Write",
                     changed_files=["src/a.py"], spec_refs=["SPEC-001"])
     assert validate_event(evt, Policy(), tmp_path).status == GateStatus.ALLOW
+
+
+# --- design-ref enforcement: touching architecture needs a resolvable ADR ---
+def _specs(tmp_path):
+    (tmp_path / "specs").mkdir(exist_ok=True)
+    (tmp_path / "specs" / "s.md").write_text("SPEC-001")
+    (tmp_path / "design" / "adr").mkdir(parents=True, exist_ok=True)
+    return tmp_path / "specs"
+
+
+def _arch_policy():
+    return Policy(
+        allowed_paths=["src/**"],
+        require_design_ref=True,
+        design_ref_paths=["src/**/domain/**"],
+    )
+
+
+def test_arch_change_without_adr_blocked(tmp_path):
+    _specs(tmp_path)
+    evt = ToolEvent(event="PreToolUse", tool_name="Write",
+                    changed_files=["src/app/domain/order.py"],
+                    spec_refs=["SPEC-001"], design_refs=[])
+    assert validate_event(evt, _arch_policy(), tmp_path / "specs").status == GateStatus.BLOCK
+
+
+def test_arch_change_with_resolvable_adr_allowed(tmp_path):
+    _specs(tmp_path)
+    (tmp_path / "design" / "adr" / "ADR-001.md").write_text("# ADR-001 layering")
+    evt = ToolEvent(event="PreToolUse", tool_name="Write",
+                    changed_files=["src/app/domain/order.py"],
+                    spec_refs=["SPEC-001"], design_refs=["ADR-001"])
+    assert validate_event(evt, _arch_policy(), tmp_path / "specs").status == GateStatus.ALLOW
+
+
+def test_nonarch_change_needs_no_adr(tmp_path):
+    _specs(tmp_path)
+    evt = ToolEvent(event="PreToolUse", tool_name="Write",
+                    changed_files=["src/util.py"],  # not architecture surface
+                    spec_refs=["SPEC-001"], design_refs=[])
+    assert validate_event(evt, _arch_policy(), tmp_path / "specs").status == GateStatus.ALLOW

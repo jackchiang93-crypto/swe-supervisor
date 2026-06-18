@@ -50,6 +50,16 @@
 | 儀表板 / OTel metrics | 規則跑穩、有數據量再做 |
 | 多 agent 併發 policy 鎖 | 單人單 agent 暫無需求 |
 
+## ✅ 治理閉環(這次補齊)
+
+| 功能 | 檔案 | 作用 |
+|---|---|---|
+| 進度打勾板 | `progress.py` + `supervisor status` | 證據推導,每次重驗,勾不會騙人;省 token |
+| spec+design 腳手架 | `supervisor new SPEC-NNN` | 一鍵生 spec+ADR stub+進度項,逼 spec-first |
+| design 強制 | `policy.needs_design_ref` + `core.verify_design_refs` | 碰架構面路徑→必須帶可解析 ADR,否則擋 |
+
+進度狀態四態:`[x]` 已驗證 / `[ ]` 未做 / `[?]` 無驗證方式 / `[!]` 宣稱已做但測試掛。
+
 ## 設計原則(不可退讓)
 
 1. confidence 永不進 gate 邏輯,只進 metrics

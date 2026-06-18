@@ -41,6 +41,32 @@ def verify_spec_refs(refs: List[str], specs_dir: str | Path) -> GateDecision:
     return allow(f"spec 參照已驗證: {refs}")
 
 
+def verify_design_refs(refs: List[str], adr_dir: str | Path) -> GateDecision:
+    """Each ADR ref must resolve to a real ADR-NNN in design/adr/*.md. Enforces
+    'update the design when you touch architecture', not just 'mention an ADR'."""
+    adr_dir = Path(adr_dir)
+    if not refs:
+        return GateDecision(
+            status=GateStatus.BLOCK,
+            codes=[ErrorCode.MISSING_EVIDENCE],
+            reasons=["變更觸及架構面但缺 design(ADR)參照"],
+            required_actions=["先新增/更新對應 ADR,再標明 ADR ID"],
+        )
+    known: set[str] = set()
+    if adr_dir.exists():
+        for f in adr_dir.rglob("*.md"):
+            known |= set(re.findall(r"\bADR-\d+\b", f.read_text(errors="ignore")))
+    missing = [r for r in refs if r not in known]
+    if missing:
+        return GateDecision(
+            status=GateStatus.BLOCK,
+            codes=[ErrorCode.DESIGN_DRIFT],
+            reasons=[f"ADR 參照無法在 design/adr/ 解析: {missing}"],
+            required_actions=["建立對應 ADR,或修正 ADR ID"],
+        )
+    return allow(f"design 參照已驗證: {refs}")
+
+
 def validate_event(evt: ToolEvent, policy: Policy, specs_dir: str | Path = "specs") -> GateDecision:
     """Fast path: read-only commands with no file writes ALLOW without LLM/spec
     checks — zero latency, zero cost. Friction is the #1 adoption killer."""
@@ -65,5 +91,9 @@ def validate_event(evt: ToolEvent, policy: Policy, specs_dir: str | Path = "spec
         # only require spec traceability for writes, and only if not already blocked
         if policy.require_spec_ref and decision.status != GateStatus.BLOCK:
             decision = decision.merge(verify_spec_refs(evt.spec_refs, specs_dir))
+        # design ref only required when the change touches architecture surface
+        if decision.status != GateStatus.BLOCK and policy.needs_design_ref(evt.changed_files):
+            adr_dir = Path(specs_dir).parent / "design" / "adr"
+            decision = decision.merge(verify_design_refs(evt.design_refs, adr_dir))
 
     return decision
